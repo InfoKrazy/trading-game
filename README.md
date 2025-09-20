@@ -10,10 +10,10 @@
 <style>
 :root{
   --bg:#0b1020; --panel:#0f1724; --muted:#9aa7bf; --accent:#7c5cff; --accent2:#00c2ff;
-  --success:#34d399; --danger:#ff7b7b; --glass: rgba(255,255,255,0.03); --radius:12px;
+  --glass: rgba(255,255,255,0.03); --radius:12px;
 }
 body{margin:0;font-family:Inter,sans-serif;background:var(--bg);color:#eaf0ff;}
-header{display:flex;align-items:center;justify-content:center;padding:16px 0;font-size:1.3rem;font-weight:700;letter-spacing:1px;}
+header{display:flex;align-items:center;justify-content:center;padding:20px 0;font-size:1.5rem;font-weight:700;letter-spacing:1px;background:var(--panel);border-bottom:1px solid rgba(255,255,255,0.05);}
 main{display:grid;grid-template-columns:320px 1fr;gap:18px;padding:16px;max-width:1200px;margin:auto;}
 .panel{background:var(--panel);padding:14px;border-radius:var(--radius);}
 .market{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;}
@@ -34,13 +34,13 @@ button:hover{opacity:.8;}
 .modal-backdrop{position:fixed;inset:0;background:rgba(2,6,23,0.6);display:none;align-items:center;justify-content:center;padding:18px;z-index:300;}
 .modal{width:100%;max-width:800px;background:var(--panel);border-radius:12px;padding:12px;border:1px solid rgba(255,255,255,0.04);}
 .close-btn{align-self:flex-end;cursor:pointer;color:var(--accent);}
-.estimate{font-size:0.85rem;color:var(--muted);}
-footer{margin-top:16px;text-align:center;color:var(--muted);}
+.estimate{font-size:0.85rem;color:#9aa7bf;}
+footer{margin-top:16px;text-align:center;color:#9aa7bf;}
 @media(max-width:980px){main{grid-template-columns:1fr;}}
 </style>
 </head>
 <body>
-<header>InfoKrazy — RNG Trading Game</header>
+<header>InfoKrazy Trading Game</header>
 <main>
 <aside class="panel sidebar">
   <div class="stat"><div>Cash</div><div id="cash">0</div></div>
@@ -84,8 +84,12 @@ const ASSETS_DEF=[
 ];
 let state={cash:START_CASH,assets:{},portfolio:{}};
 
-/*----------------- INIT -----------------*/
-function initAssets(){ASSETS_DEF.forEach(a=>state.assets[a.sym]={...a,history:Array.from({length:HISTORY_LEN},()=>a.price)});}
+function initAssets(){
+  ASSETS_DEF.forEach(a=>{
+    state.assets[a.sym]={...a,history:Array.from({length:HISTORY_LEN},()=>a.price)};
+  });
+}
+
 function rand(a,b){return Math.random()*(b-a)+a;}
 function format(n){return Math.round(n*100)/100;}
 function getPortfolioValue(){return Object.keys(state.portfolio).reduce((s,sym)=>s+state.portfolio[sym]*state.assets[sym].price,0);}
@@ -121,11 +125,7 @@ function renderMarket(){
       </div>
     `;
     const tradeMenu=card.querySelector('.trade-menu');
-    // prevent toggle when interacting with inputs/buttons
-    card.addEventListener('click',(e)=>{
-      if(e.target.closest('.trade-menu')) return;
-      tradeMenu.classList.toggle('active');
-    });
+    card.addEventListener('click',e=>{if(e.target.closest('.trade-menu')) return; tradeMenu.classList.toggle('active');});
     const qtyInput=card.querySelector('.qty');
     const sideSelect=card.querySelector('.side');
     const estSpan=card.querySelector('.estimated');
@@ -133,9 +133,7 @@ function renderMarket(){
     qtyInput.addEventListener('input',updateEstimate);
     sideSelect.addEventListener('change',updateEstimate);
     updateEstimate();
-
-    card.querySelector('.tradeBtn').addEventListener('click',e=>{
-      e.stopPropagation();
+    card.querySelector('.tradeBtn').addEventListener('click',e=>{e.stopPropagation();
       const qty=parseInt(qtyInput.value)||0;
       const side=sideSelect.value;
       if(qty<=0){alert('Qty>0');return;}
@@ -145,7 +143,6 @@ function renderMarket(){
         state.cash+=a.price*qty; state.portfolio[a.sym]-=qty;if(state.portfolio[a.sym]<=0) delete state.portfolio[a.sym];}
       updateUI();
     });
-
     card.querySelector('.chartBtn').addEventListener('click',e=>{e.stopPropagation(); showAssetChart(a.sym);});
     marketGrid.appendChild(card);
   });
@@ -159,7 +156,7 @@ function renderPortfolio(){portfolioEl.innerHTML='';Object.keys(state.portfolio)
   row.innerHTML=`<div>${sym} x${qty}</div><div>$${format(qty*price)}</div>`; portfolioEl.appendChild(row);
 });}
 
-/*----------------- PRICE UPDATE -----------------*/
+/*----------------- MARKET UPDATE -----------------*/
 function tickMarket(){Object.values(state.assets).forEach(a=>{
   const change=(Math.random()-0.5)*2*a.vol*a.price;
   a.price=Math.max(0.1,a.price+change);
