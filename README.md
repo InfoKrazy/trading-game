@@ -71,25 +71,29 @@ footer{margin-top:16px;text-align:center;color:#9aa7bf;}
 </div>
 
 <script>
+// Register candlestick
 Chart.register(Chart.FinancialController, Chart.CandlestickElement, Chart.LinearScale, Chart.TimeScale, Chart.CategoryScale, Chart.LineController, Chart.LineElement, Chart.PointElement);
 
-/*----------------- CONFIG -----------------*/
+// CONFIG
 const START_CASH=5000,HISTORY_LEN=60;
 const ASSETS_DEF=[
-{name:'NeoCoin',sym:'NEO',price:42.5,vol:0.02},
-{name:'Aether',sym:'ATH',price:128,vol:0.016},
-{name:'ByteRod',sym:'BYT',price:9.8,vol:0.035},
-{name:'QuantumX',sym:'QTX',price:310,vol:0.01},
-{name:'GreenBond',sym:'GBD',price:78.2,vol:0.012}
+  {name:'NeoCoin',sym:'NEO',price:42.5,vol:0.02},
+  {name:'Aether',sym:'ATH',price:128,vol:0.016},
+  {name:'ByteRod',sym:'BYT',price:9.8,vol:0.035},
+  {name:'QuantumX',sym:'QTX',price:310,vol:0.01},
+  {name:'GreenBond',sym:'GBD',price:78.2,vol:0.012}
 ];
+
 let state={cash:START_CASH,assets:{},portfolio:{}};
 
+// INIT ASSETS
 function initAssets(){
   ASSETS_DEF.forEach(a=>{
     state.assets[a.sym]={...a,history:Array.from({length:HISTORY_LEN},()=>a.price)};
   });
 }
 
+// HELPERS
 function rand(a,b){return Math.random()*(b-a)+a;}
 function format(n){return Math.round(n*100)/100;}
 function getPortfolioValue(){return Object.keys(state.portfolio).reduce((s,sym)=>s+state.portfolio[sym]*state.assets[sym].price,0);}
@@ -99,7 +103,7 @@ document.getElementById('portval').textContent=format(portVal);
 document.getElementById('networth').textContent=format(state.cash+portVal);
 renderPortfolio(); renderMarket();}
 
-/*----------------- MARKET -----------------*/
+// MARKET
 const marketGrid=document.getElementById('marketGrid');
 function renderMarket(){
   marketGrid.innerHTML='';
@@ -148,7 +152,7 @@ function renderMarket(){
   });
 }
 
-/*----------------- PORTFOLIO -----------------*/
+// PORTFOLIO
 const portfolioEl=document.getElementById('portfolio');
 function renderPortfolio(){portfolioEl.innerHTML='';Object.keys(state.portfolio).forEach(sym=>{
   const qty=state.portfolio[sym]; const price=state.assets[sym].price;
@@ -156,7 +160,7 @@ function renderPortfolio(){portfolioEl.innerHTML='';Object.keys(state.portfolio)
   row.innerHTML=`<div>${sym} x${qty}</div><div>$${format(qty*price)}</div>`; portfolioEl.appendChild(row);
 });}
 
-/*----------------- MARKET UPDATE -----------------*/
+// MARKET UPDATE
 function tickMarket(){Object.values(state.assets).forEach(a=>{
   const change=(Math.random()-0.5)*2*a.vol*a.price;
   a.price=Math.max(0.1,a.price+change);
@@ -164,7 +168,7 @@ function tickMarket(){Object.values(state.assets).forEach(a=>{
 }); updateUI();}
 setInterval(tickMarket,10000);
 
-/*----------------- CHART MODAL -----------------*/
+// CHART MODAL
 const modal=document.getElementById('modal');
 const closeModal=document.getElementById('closeModal');
 const chartTypeSelect=document.getElementById('chartType');
@@ -172,10 +176,8 @@ const modalTitle=document.getElementById('modalTitle');
 let assetChart=null,curAsset=null;
 closeModal.addEventListener('click',()=>modal.style.display='none');
 chartTypeSelect.addEventListener('change',()=>drawChart(curAsset));
-
 function showAssetChart(sym){modal.style.display='flex'; curAsset=sym;
 modalTitle.textContent=`${state.assets[sym].name} (${sym}) Chart`; drawChart(sym);}
-
 function drawChart(sym){const a=state.assets[sym]; const ctx=document.getElementById('assetChart').getContext('2d'); const type=chartTypeSelect.value;
 const labels=a.history.map((_,i)=>i); if(assetChart) assetChart.destroy();
 if(type==='line'){assetChart=new Chart(ctx,{type:'line',data:{labels,datasets:[{label:sym,data:a.history,borderColor:'#7c5cff',backgroundColor:'rgba(124,92,255,0.2)',tension:0.3}]},options:{responsive:true,plugins:{legend:{display:false}}}});}
@@ -184,7 +186,7 @@ assetChart=new Chart(ctx,{type:'candlestick',data:{datasets:[{label:sym,data:can
 }
 setInterval(()=>{if(curAsset)drawChart(curAsset)},10000);
 
-/*----------------- INIT -----------------*/
+// INIT
 initAssets(); updateUI();
 </script>
 </body>
