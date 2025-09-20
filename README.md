@@ -190,4 +190,3 @@ setInterval(()=>{if(curAsset)drawChart(curAsset)},10000);
 initAssets(); updateUI();
 </script>
 </body>
-</html>
