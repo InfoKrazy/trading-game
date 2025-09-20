@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>InfoKrazy Trading Game</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.1.0/dist/chartjs-chart-financial.min.js"></script>
 <style>
 :root{
@@ -17,7 +17,7 @@ header{display:flex;align-items:center;justify-content:center;padding:16px 0;fon
 main{display:grid;grid-template-columns:320px 1fr;gap:18px;padding:16px;max-width:1200px;margin:auto;}
 .panel{background:var(--panel);padding:14px;border-radius:var(--radius);}
 .market{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;}
-.card{background:var(--glass);border-radius:var(--radius);padding:12px;cursor:pointer;transition:transform .18s,box-shadow .18s;}
+.card{background:var(--glass);border-radius:var(--radius);padding:12px;transition:transform .18s,box-shadow .18s;cursor:pointer;}
 .card:hover{transform:translateY(-6px);box-shadow:0 14px 40px rgba(0,0,0,0.6);}
 .asset-thumb{width:44px;height:44px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-weight:700;color:#021027;}
 .asset-info{margin-left:8px;flex:1;}
@@ -51,9 +51,8 @@ footer{margin-top:16px;text-align:center;color:var(--muted);}
 </aside>
 <section class="market panel" id="marketGrid"></section>
 </main>
-<footer>Prices update every second. Click a stock to trade and view charts.</footer>
+<footer>Prices update every 10 seconds. Click a stock to trade and view charts.</footer>
 
-<!-- Chart Modal -->
 <div class="modal-backdrop" id="modal">
   <div class="modal">
     <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -72,8 +71,10 @@ footer{margin-top:16px;text-align:center;color:var(--muted);}
 </div>
 
 <script>
+Chart.register(Chart.FinancialController, Chart.CandlestickElement, Chart.LinearScale, Chart.TimeScale, Chart.CategoryScale, Chart.LineController, Chart.LineElement, Chart.PointElement);
+
 /*----------------- CONFIG -----------------*/
-const START_CASH=5000,GOAL=20000,HISTORY_LEN=120;
+const START_CASH=5000,HISTORY_LEN=60;
 const ASSETS_DEF=[
 {name:'NeoCoin',sym:'NEO',price:42.5,vol:0.02},
 {name:'Aether',sym:'ATH',price:128,vol:0.016},
@@ -81,24 +82,18 @@ const ASSETS_DEF=[
 {name:'QuantumX',sym:'QTX',price:310,vol:0.01},
 {name:'GreenBond',sym:'GBD',price:78.2,vol:0.012}
 ];
-let state={tick:0,cash:START_CASH,assets:{},portfolio:{}};
+let state={cash:START_CASH,assets:{},portfolio:{}};
 
 /*----------------- INIT -----------------*/
-function initAssets(){
-  ASSETS_DEF.forEach(a=>{
-    state.assets[a.sym]={...a,history:Array.from({length:HISTORY_LEN},()=>a.price)};
-  });
-}
+function initAssets(){ASSETS_DEF.forEach(a=>state.assets[a.sym]={...a,history:Array.from({length:HISTORY_LEN},()=>a.price)});}
 function rand(a,b){return Math.random()*(b-a)+a;}
 function format(n){return Math.round(n*100)/100;}
 function getPortfolioValue(){return Object.keys(state.portfolio).reduce((s,sym)=>s+state.portfolio[sym]*state.assets[sym].price,0);}
-function updateUI(){
-  document.getElementById('cash').textContent=format(state.cash);
-  const portVal=getPortfolioValue();
-  document.getElementById('portval').textContent=format(portVal);
-  document.getElementById('networth').textContent=format(state.cash+portVal);
-  renderPortfolio(); renderMarket();
-}
+function updateUI(){document.getElementById('cash').textContent=format(state.cash);
+const portVal=getPortfolioValue();
+document.getElementById('portval').textContent=format(portVal);
+document.getElementById('networth').textContent=format(state.cash+portVal);
+renderPortfolio(); renderMarket();}
 
 /*----------------- MARKET -----------------*/
 const marketGrid=document.getElementById('marketGrid');
@@ -126,10 +121,11 @@ function renderMarket(){
       </div>
     `;
     const tradeMenu=card.querySelector('.trade-menu');
-    card.addEventListener('click',()=>{
+    // prevent toggle when interacting with inputs/buttons
+    card.addEventListener('click',(e)=>{
+      if(e.target.closest('.trade-menu')) return;
       tradeMenu.classList.toggle('active');
     });
-    // Quantity input updates estimated cost
     const qtyInput=card.querySelector('.qty');
     const sideSelect=card.querySelector('.side');
     const estSpan=card.querySelector('.estimated');
@@ -138,60 +134,38 @@ function renderMarket(){
     sideSelect.addEventListener('change',updateEstimate);
     updateEstimate();
 
-    // Trade button
-    card.querySelector('.tradeBtn').addEventListener('click',(e)=>{
+    card.querySelector('.tradeBtn').addEventListener('click',e=>{
       e.stopPropagation();
       const qty=parseInt(qtyInput.value)||0;
       const side=sideSelect.value;
       if(qty<=0){alert('Qty>0');return;}
-      if(side==='buy'){
-        const cost=a.price*qty;
-        if(cost>state.cash){alert('Not enough cash');return;}
-        state.cash-=cost;
-        state.portfolio[a.sym]=(state.portfolio[a.sym]||0)+qty;
-      }else{
-        if((state.portfolio[a.sym]||0)<qty){alert('Not enough holdings');return;}
-        state.cash+=a.price*qty;
-        state.portfolio[a.sym]-=qty;
-        if(state.portfolio[a.sym]<=0) delete state.portfolio[a.sym];
-      }
+      if(side==='buy'){const cost=a.price*qty;if(cost>state.cash){alert('Not enough cash');return;}
+        state.cash-=cost; state.portfolio[a.sym]=(state.portfolio[a.sym]||0)+qty;
+      }else{if((state.portfolio[a.sym]||0)<qty){alert('Not enough holdings');return;}
+        state.cash+=a.price*qty; state.portfolio[a.sym]-=qty;if(state.portfolio[a.sym]<=0) delete state.portfolio[a.sym];}
       updateUI();
     });
 
-    // Chart button
-    card.querySelector('.chartBtn').addEventListener('click',(e)=>{
-      e.stopPropagation();
-      showAssetChart(a.sym);
-    });
-
+    card.querySelector('.chartBtn').addEventListener('click',e=>{e.stopPropagation(); showAssetChart(a.sym);});
     marketGrid.appendChild(card);
   });
 }
 
 /*----------------- PORTFOLIO -----------------*/
 const portfolioEl=document.getElementById('portfolio');
-function renderPortfolio(){
-  portfolioEl.innerHTML='';
-  Object.keys(state.portfolio).forEach(sym=>{
-    const qty=state.portfolio[sym];
-    const price=state.assets[sym].price;
-    const row=document.createElement('div'); row.className='asset-row';
-    row.innerHTML=`<div>${sym} x${qty}</div><div>$${format(qty*price)}</div>`;
-    portfolioEl.appendChild(row);
-  });
-}
+function renderPortfolio(){portfolioEl.innerHTML='';Object.keys(state.portfolio).forEach(sym=>{
+  const qty=state.portfolio[sym]; const price=state.assets[sym].price;
+  const row=document.createElement('div'); row.className='asset-row';
+  row.innerHTML=`<div>${sym} x${qty}</div><div>$${format(qty*price)}</div>`; portfolioEl.appendChild(row);
+});}
 
 /*----------------- PRICE UPDATE -----------------*/
-function tickMarket(){
-  Object.values(state.assets).forEach(a=>{
-    const change=(Math.random()-0.5)*2*a.vol*a.price;
-    a.price=Math.max(0.1,a.price+change);
-    a.history.push(a.price);
-    if(a.history.length>HISTORY_LEN) a.history.shift();
-  });
-  updateUI();
-}
-setInterval(tickMarket,1000);
+function tickMarket(){Object.values(state.assets).forEach(a=>{
+  const change=(Math.random()-0.5)*2*a.vol*a.price;
+  a.price=Math.max(0.1,a.price+change);
+  a.history.push(a.price); if(a.history.length>HISTORY_LEN) a.history.shift();
+}); updateUI();}
+setInterval(tickMarket,10000);
 
 /*----------------- CHART MODAL -----------------*/
 const modal=document.getElementById('modal');
@@ -202,37 +176,19 @@ let assetChart=null,curAsset=null;
 closeModal.addEventListener('click',()=>modal.style.display='none');
 chartTypeSelect.addEventListener('change',()=>drawChart(curAsset));
 
-function showAssetChart(sym){
-  modal.style.display='flex';
-  curAsset=sym;
-  modalTitle.textContent=`${state.assets[sym].name} (${sym}) Chart`;
-  drawChart(sym);
-}
+function showAssetChart(sym){modal.style.display='flex'; curAsset=sym;
+modalTitle.textContent=`${state.assets[sym].name} (${sym}) Chart`; drawChart(sym);}
 
-function drawChart(sym){
-  const a=state.assets[sym];
-  const ctx=document.getElementById('assetChart').getContext('2d');
-  const type=chartTypeSelect.value;
-  const labels=a.history.map((_,i)=>i);
-  if(assetChart) assetChart.destroy();
-  if(type==='line'){
-    assetChart=new Chart(ctx,{
-      type:'line',
-      data:{labels, datasets:[{label:sym,data:a.history,borderColor:'#7c5cff',backgroundColor:'rgba(124,92,255,0.2)',tension:0.3}]},
-      options:{responsive:true,plugins:{legend:{display:false}}}
-    });
-  }else{
-    const candleData=a.history.map((p,i)=>({x:i,o:p*rand(0.98,1.02),h:p*rand(1,1.03),l:p*rand(0.97,1),c:p*rand(0.98,1.02)}));
-    assetChart=new Chart(ctx,{type:'candlestick',data:{datasets:[{label:sym,data:candleData}]},options:{responsive:true}});
-  }
+function drawChart(sym){const a=state.assets[sym]; const ctx=document.getElementById('assetChart').getContext('2d'); const type=chartTypeSelect.value;
+const labels=a.history.map((_,i)=>i); if(assetChart) assetChart.destroy();
+if(type==='line'){assetChart=new Chart(ctx,{type:'line',data:{labels,datasets:[{label:sym,data:a.history,borderColor:'#7c5cff',backgroundColor:'rgba(124,92,255,0.2)',tension:0.3}]},options:{responsive:true,plugins:{legend:{display:false}}}});}
+else{const candleData=a.history.map((p,i)=>({x:i,o:p*rand(0.98,1.02),h:p*rand(1,1.03),l:p*rand(0.97,1),c:p*rand(0.98,1.02)}));
+assetChart=new Chart(ctx,{type:'candlestick',data:{datasets:[{label:sym,data:candleData}]},options:{responsive:true}});}
 }
-
-// Auto-refresh chart
 setInterval(()=>{if(curAsset)drawChart(curAsset)},10000);
 
 /*----------------- INIT -----------------*/
-initAssets();
-updateUI();
+initAssets(); updateUI();
 </script>
 </body>
 </html>
